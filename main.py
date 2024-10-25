@@ -68,7 +68,7 @@ def triangleClipAgainstPlane(planeP:Vec3d, planeN:Vec3d, inTri:Triangle):
         outsidePoints[nOutsidePointCount] = inTri.p[2]
         inTri.p[2].outside = True
         nOutsidePointCount +=1
-
+    x = 1
     if nInsidePointCount == 0:
         return 0, [] #no returned triangles are valid
     if nInsidePointCount == 3:
@@ -76,15 +76,15 @@ def triangleClipAgainstPlane(planeP:Vec3d, planeN:Vec3d, inTri:Triangle):
         return 1, [outTri1] # just the one returned original triangle is valid
     
     if nInsidePointCount == 1 and nOutsidePointCount == 2:
-        outTri1.col = inTri.col
+        outTri1.col = "RED"
         outTri1.p[0] = insidePoints[0]
         outTri1.p[1] = vecIntersectPlane(planeP, planeN, insidePoints[0], outsidePoints[0])
         outTri1.p[2] = vecIntersectPlane(planeP, planeN, insidePoints[0], outsidePoints[1])
         return 1, [copy.deepcopy(outTri1)]
     
     if nInsidePointCount == 2 and nOutsidePointCount == 1:
-        outTri1.col = inTri.col
-        outTri2.col = inTri.col
+        outTri1.col = "GREEN"
+        outTri2.col = "PURPLE"
 
         outTri1.p[0] = insidePoints[0]
         outTri1.p[1] = insidePoints[1]
@@ -93,7 +93,7 @@ def triangleClipAgainstPlane(planeP:Vec3d, planeN:Vec3d, inTri:Triangle):
         outTri2.p[0] = insidePoints[1]
         outTri2.p[1] = outTri1.p[2]
         outTri2.p[2] = vecIntersectPlane(planeP, planeN, insidePoints[1], outsidePoints[0])
-        return 2, [outTri2, outTri1] #both returned triangles are valid
+        return 2, [copy.deepcopy(outTri1), copy.deepcopy(outTri2)] #both returned triangles are valid
 
     #lighting functions
 def luminanceToGreyscale(lum:float):
@@ -211,12 +211,9 @@ while not done:
             triViewed.col = triTransformed.col
 
             # Clip viewed triangle against the near plane
-            clipped: List[Triangle] = [tri]
-            nClippedTriangles = 1
+            clipped: List[Triangle] = [Triangle(), Triangle()]
+            nClippedTriangles = 0
             nClippedTriangles, clipped = triangleClipAgainstPlane(Vec3d(0, 0, 0.2), Vec3d(0, 0, 1), triViewed)
-            # if nClippedTriangles == 1:
-            #     if clipped[0].p[0].z <= 0 or clipped[0].p[1].z <= 0 or clipped[0].p[2].z <= 0:
-            #         continue
             for n in range(nClippedTriangles):
                 triClipped = copy.deepcopy(clipped[n])
 
@@ -242,13 +239,32 @@ while not done:
             
     
     trisToDraw.sort(key=lambda x: (x.p[0].z + x.p[1].z + x.p[2].z)/3, reverse=True)
-    for x in trisToDraw:
-        (x.p[0].z + x.p[1].z + x.p[2].z)/3
     SCREEN.fill("WHITE")
     for tri in trisToDraw:
-        fillTriangle(tri, "RED")
-        if showWireframe:
-            drawTriangle(tri, 2, "BLACK")
+        clipped:List[Triangle] = [Triangle(), Triangle()]
+        listTriangles = []
+        listTriangles.append(tri)
+        nNewTriangles = 1
+
+        for p in range(4):
+            listTrianglesNew = []
+            for test in listTriangles:
+                match p:
+                    case 0: 
+                        nTrisToAdd, clipped = triangleClipAgainstPlane(Vec3d(0, 0, 0), Vec3d(0, 1, 0), test)
+                    case 1: 
+                        nTrisToAdd, clipped = triangleClipAgainstPlane(Vec3d(0, HEIGHT - 1, 0), Vec3d(0, -1, 0), test)
+                    case 2: 
+                        nTrisToAdd, clipped = triangleClipAgainstPlane(Vec3d(0, 0, 0), Vec3d(1, 0, 0), test)
+                    case 3:
+                        nTrisToAdd, clipped = triangleClipAgainstPlane(Vec3d(WIDTH-1, 0, 0), Vec3d(-1, 0, 0), test)
+                listTrianglesNew.extend(clipped[:nTrisToAdd])
+            listTriangles = listTrianglesNew
+        
+        for tri in listTriangles:
+            fillTriangle(tri)
+            drawTriangle(tri, 3)
+
 
     display.set_caption("3D Render Engine | " + str(CLOCK.get_fps().__round__(0)) + "FPS")
     display.flip()
